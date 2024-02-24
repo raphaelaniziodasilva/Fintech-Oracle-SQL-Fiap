@@ -1,5 +1,5 @@
 package org.fiap.com.br.dao;
-import org.fiap.com.br.database.ConnectionFactory;
+
 import org.fiap.com.br.entity.Wallet;
 
 import java.sql.Connection;
@@ -10,8 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WalletDAOImpl implements WalletDAO {
-    private Connection connection;
-    private PreparedStatement pstmt = null;
+    private final Connection connection;
 
     public WalletDAOImpl(Connection connection) {
         this.connection = connection;
@@ -19,41 +18,22 @@ public class WalletDAOImpl implements WalletDAO {
 
     @Override
     public void create(Wallet wallet) {
-        try {
-            // Preparando a consulta SQL para inserção: criação
-            String sql = "INSERT INTO CARTEIRA (cd_carteira, usuario_cd_usuario, nm_carteira, saldo, gastos)" +
-                    "VALUES (?, ?, ?, ?, ?)";
+        if (connection == null) {
+            throw new IllegalStateException("Conexão é nula");
+        }
 
-            pstmt = connection.prepareStatement(sql);
+        try (PreparedStatement pstmt = connection.prepareStatement(
+                "INSERT INTO CARTEIRA (cd_carteira, usuario_cd_usuario, nm_carteira, saldo, gastos, economia) VALUES (?, ?, ?, ?, ?, ?)")) {
             pstmt.setInt(1, wallet.getCode());
             pstmt.setInt(2, wallet.getUserCode());
             pstmt.setString(3, wallet.getName());
             pstmt.setDouble(4, wallet.getBalance());
             pstmt.setDouble(5, wallet.getExpenses());
+            pstmt.setDouble(6, wallet.getEconomy());
 
-            // Execute a consulta SQL para inserir a carteira
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            // Lidar com qualquer exceções de erro relacionadas ao banco de dados
-            e.printStackTrace();
-        } finally {
-            // Fecha o PreparedStatement assim que a carteira for adicionada
-            try {
-                if (pstmt != null) {
-                    pstmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-            // Fecha a conexão com o banco de dados assim que a carteira for adicionada
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException("Erro ao criar carteira", e);
         }
     }
 
@@ -61,44 +41,19 @@ public class WalletDAOImpl implements WalletDAO {
     public List<Wallet> walletList() {
         List<Wallet> walletList = new ArrayList<>();
 
-        try {
-            // Preparando a consulta SQL para recuperar todas as carteiras
-            String sql = "SELECT * FROM CARTEIRA";
-            pstmt = connection.prepareStatement(sql);
+        if (connection == null) {
+            throw new IllegalStateException("Conexão é nula");
+        }
 
-            // Executando a consulta para recuperar os dados da carteira
-            ResultSet resultSet = pstmt.executeQuery();
+        try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM CARTEIRA");
+             ResultSet resultSet = pstmt.executeQuery()) {
 
             while (resultSet.next()) {
-                // Criando uma carteira com as informações encontradas
-                Wallet wallet = new Wallet();
-                wallet.setCode(resultSet.getInt("cd_carteira"));
-                wallet.setUserCode(resultSet.getInt("usuario_cd_usuario"));
-                wallet.setName(resultSet.getString("nm_carteira"));
-                wallet.setBalance(resultSet.getDouble("saldo"));
-                wallet.setExpenses(resultSet.getDouble("gastos"));
-
-                // Adicionar carteira na lista
+                Wallet wallet = extractWalletFromResultSet(resultSet);
                 walletList.add(wallet);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (pstmt != null) {
-                    pstmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException("Erro ao buscar lista de carteiras", e);
         }
         return walletList;
     }
@@ -107,116 +62,71 @@ public class WalletDAOImpl implements WalletDAO {
     public Wallet searchWalletCode(int code) {
         Wallet wallet = null;
 
-        try {
-            // Preparando a consulta SQL para recuperar uma carteira pelo código
-            String sql = "SELECT * FROM CARTEIRA WHERE cd_carteira = ?";
-            pstmt = connection.prepareStatement(sql);
+        if (connection == null) {
+            throw new IllegalStateException("Conexão é nula");
+        }
+
+        try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM CARTEIRA WHERE cd_carteira = ?")) {
             pstmt.setInt(1, code);
 
-            // Executando a consulta para recuperar os dados da carteira
-            ResultSet resultSet = pstmt.executeQuery();
-
-            if (resultSet.next()) {
-                wallet = new Wallet();
-                wallet.setCode(resultSet.getInt("cd_carteira"));
-                wallet.setUserCode(resultSet.getInt("usuario_cd_usuario"));
-                wallet.setName(resultSet.getString("nm_carteira"));
-                wallet.setBalance(resultSet.getDouble("saldo"));
-                wallet.setExpenses(resultSet.getDouble("gastos"));
-            } else {
-                // Se nenhuma carteira for encontrada
-                System.out.println("Carteira não existe");
+            try (ResultSet resultSet = pstmt.executeQuery()) {
+                if (resultSet.next()) {
+                    wallet = extractWalletFromResultSet(resultSet);
+                } else {
+                    System.out.println("Carteira não encontrada para o código: " + code);
+                }
             }
         } catch (SQLException e) {
-            // Lidar com quaisquer exceções relacionadas ao banco de dados
-            e.printStackTrace();
-        } finally {
-            // Fechando o PreparedStatement e a conexão com o banco de dados
-            try {
-                if (pstmt != null) {
-                    pstmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException("Erro ao procurar carteira", e);
         }
         return wallet;
     }
 
     @Override
     public void update(Wallet wallet) {
-        try {
-            // Preparando a consulta SQL para atualizar as informações de uma carteira
-            String sql = "UPDATE CARTEIRA SET usuario_cd_usuario = ?, nm_carteira = ?, saldo = ?, gastos = ? WHERE cd_carteira = ?";
-            pstmt = connection.prepareStatement(sql);
+        if (connection == null) {
+            throw new IllegalStateException("Conexão é nula");
+        }
+
+        try (PreparedStatement pstmt = connection.prepareStatement(
+                "UPDATE CARTEIRA SET usuario_cd_usuario = ?, nm_carteira = ?, saldo = ?, gastos = ?, economia = ? WHERE cd_carteira = ?"
+        )) {
 
             pstmt.setInt(1, wallet.getUserCode());
             pstmt.setString(2, wallet.getName());
             pstmt.setDouble(3, wallet.getBalance());
             pstmt.setDouble(4, wallet.getExpenses());
-            pstmt.setInt(5, wallet.getCode());
+            pstmt.setDouble(5, wallet.getEconomy());
+            pstmt.setInt(6, wallet.getCode());
 
-            // Executando a consulta para atualizar as informações do usuário
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (pstmt != null) {
-                    pstmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException("Erro ao atualizar carteira", e);
         }
-
     }
 
     @Override
     public void remove(int code) {
-        try {
-            // preparando a consulta SQL para excluir um usuário pelo seu código
-            String sql = "DELETE FROM CARTEIRA WHERE cd_carteira = ?";
-            pstmt = connection.prepareStatement(sql);
-            pstmt.setInt(1, code);
+        if (connection == null) {
+            throw new IllegalStateException("Conexão é nula");
+        }
 
-            // Executa a consulta para excluir o usuário
+        try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM CARTEIRA WHERE cd_carteira = ?")) {
+            pstmt.setInt(1, code);
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (pstmt != null) {
-                    pstmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException("Erro ao remover carteira", e);
         }
     }
 
+    private Wallet extractWalletFromResultSet(ResultSet resultSet) throws SQLException {
+        Wallet wallet = new Wallet();
+        wallet.setCode(resultSet.getInt("cd_carteira"));
+        wallet.setUserCode(resultSet.getInt("usuario_cd_usuario"));
+        wallet.setName(resultSet.getString("nm_carteira"));
+        wallet.setBalance(resultSet.getDouble("saldo"));
+        wallet.setExpenses(resultSet.getDouble("gastos"));
+        wallet.setEconomy(resultSet.getDouble("economia"));
+        return wallet;
+    }
 }

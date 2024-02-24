@@ -12,6 +12,8 @@ public interface UserDAO {
     User searchUserCode (int code);
     void update (User user);
     void remove (int code);
+    String login(String email, String password);
+
 }
 
 // Agora crie um arquivo chamado UserDAOImpl e implemente a interface UserDAO

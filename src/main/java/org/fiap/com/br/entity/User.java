@@ -7,6 +7,8 @@ import java.util.Date;
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;
     private int code;
+    private String email;
+    private String password;
     private String name;
     private String surname;
     private String rg;
@@ -17,8 +19,10 @@ public class User implements Serializable {
     private String cellPhone1;
     private String telephone1;
 
-    public User(int code, String name, String surname, String rg, String cpf, Date dateOfBirth, String cellPhone, String telephone, String cellPhone1, String telephone1) {
+    public User(int code, String email, String password, String name, String surname, String rg, String cpf, Date dateOfBirth, String cellPhone, String telephone, String cellPhone1, String telephone1) {
         this.code = code;
+        this.email = email;
+        this.password = password;
         this.name = name;
         this.surname = surname;
         this.rg = rg;
@@ -39,6 +43,22 @@ public class User implements Serializable {
 
     public void setCode(int code) {
         this.code = code;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public String getName() {
@@ -119,6 +139,10 @@ public class User implements Serializable {
 
         return "User{" +
                 "code=" + code +
+                ", email='" + email + '\'' +
+                ", password='" + password + '\'' +
+                ", name='" + name + '\'' +
+                ", surname='" + surname + '\'' +
                 ", name='" + name + '\'' +
                 ", surname='" + surname + '\'' +
                 ", rg='" + rg + '\'' +

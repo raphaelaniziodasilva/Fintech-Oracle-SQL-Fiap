@@ -1,5 +1,4 @@
 package org.fiap.com.br.dao;
-import org.fiap.com.br.database.ConnectionFactory;
 import org.fiap.com.br.entity.User;
 
 import java.sql.Connection;
@@ -14,7 +13,7 @@ import java.util.List;
 // até a manipulação dos dados da tabela USUARIO no banco de dados
 
 public class UserDAOImpl implements UserDAO {
-    private Connection connection;
+    private final Connection connection;
 
     public UserDAOImpl(Connection connection) {
         this.connection = connection;
@@ -23,28 +22,30 @@ public class UserDAOImpl implements UserDAO {
     @Override
     public void create(User user) {
         if (connection == null) {
-            return;
+            throw new IllegalStateException("Conexão é nula");
         }
 
         try (PreparedStatement pstmt = connection.prepareStatement(
-                "INSERT INTO USUARIO (cd_usuario, nm_usuario, sobrenome_usuario, nr_rg, nr_cpf, " +
+                "INSERT INTO USUARIO (cd_usuario, email, password, nm_usuario, sobrenome_usuario, nr_rg, nr_cpf, " +
                         "dt_nascimento, nr_celular, nr_telefone, nr_celular1, nr_telefone1) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
 
             pstmt.setInt(1, user.getCode());
-            pstmt.setString(2, user.getName());
-            pstmt.setString(3, user.getSurname());
-            pstmt.setString(4, user.getRg());
-            pstmt.setString(5, user.getCpf());
-            pstmt.setDate(6, new java.sql.Date(user.getDateOfBirth().getTime()));
-            pstmt.setString(7, user.getCellPhone());
-            pstmt.setString(8, user.getTelephone());
-            pstmt.setString(9, user.getCellPhone1());
-            pstmt.setString(10, user.getTelephone1());
+            pstmt.setString(2, user.getEmail());
+            pstmt.setString(3, user.getPassword());
+            pstmt.setString(4, user.getName());
+            pstmt.setString(5, user.getSurname());
+            pstmt.setString(6, user.getRg());
+            pstmt.setString(7, user.getCpf());
+            pstmt.setDate(8, new java.sql.Date(user.getDateOfBirth().getTime()));
+            pstmt.setString(9, user.getCellPhone());
+            pstmt.setString(10, user.getTelephone());
+            pstmt.setString(11, user.getCellPhone1());
+            pstmt.setString(12, user.getTelephone1());
 
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Erro ao criar usuário", e);
         }
     }
 
@@ -53,7 +54,7 @@ public class UserDAOImpl implements UserDAO {
         List<User> userList = new ArrayList<>();
 
         if (this.connection == null) {
-            System.out.println("Connection is null");
+            System.out.println("Conexão é nula");
             return userList;
         }
 
@@ -61,33 +62,21 @@ public class UserDAOImpl implements UserDAO {
              ResultSet resultSet = pstmt.executeQuery()) {
 
             while (resultSet.next()) {
-                User user = new User();
-                user.setCode(resultSet.getInt("cd_usuario"));
-                user.setName(resultSet.getString("nm_usuario"));
-                user.setSurname(resultSet.getString("sobrenome_usuario"));
-                user.setRg(resultSet.getString("nr_rg"));
-                user.setCpf(resultSet.getString("nr_cpf"));
-                user.setDateOfBirth(resultSet.getDate("dt_nascimento"));
-                user.setCellPhone(resultSet.getString("nr_celular"));
-                user.setTelephone(resultSet.getString("nr_telefone"));
-                user.setCellPhone1(resultSet.getString("nr_celular1"));
-                user.setTelephone1(resultSet.getString("nr_telefone1"));
+                User user = extractUserFromResultSet(resultSet);
                 userList.add(user);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Erro ao buscar lista de usuários", e);
         }
-
         return userList;
     }
-
 
     @Override
     public User searchUserCode(int code) {
         User user = null;
 
         if (connection == null) {
-            return user;
+            throw new IllegalStateException("Conexão é nula");
         }
 
         try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM USUARIO WHERE cd_usuario = ?")) {
@@ -95,25 +84,14 @@ public class UserDAOImpl implements UserDAO {
 
             try (ResultSet resultSet = pstmt.executeQuery()) {
                 if (resultSet.next()) {
-                    user = new User();
-                    user.setCode(resultSet.getInt("cd_usuario"));
-                    user.setName(resultSet.getString("nm_usuario"));
-                    user.setSurname(resultSet.getString("sobrenome_usuario"));
-                    user.setRg(resultSet.getString("nr_rg"));
-                    user.setCpf(resultSet.getString("nr_cpf"));
-                    user.setDateOfBirth(resultSet.getDate("dt_nascimento"));
-                    user.setCellPhone(resultSet.getString("nr_celular"));
-                    user.setTelephone(resultSet.getString("nr_telefone"));
-                    user.setCellPhone1(resultSet.getString("nr_celular1"));
-                    user.setTelephone1(resultSet.getString("nr_telefone1"));
+                    user = extractUserFromResultSet(resultSet);
                 } else {
-                    System.out.println("Usuário não existe");
+                    System.out.println("Usuário não encontrada para o código: " + code);
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Erro ao procurar usuário", e);
         }
-
         return user;
     }
 
@@ -121,28 +99,30 @@ public class UserDAOImpl implements UserDAO {
     @Override
     public void update(User user) {
         if (connection == null) {
-            return;
+            throw new IllegalStateException("Conexão é nula");
         }
 
         try (PreparedStatement pstmt = connection.prepareStatement(
-                "UPDATE USUARIO SET nm_usuario = ?, sobrenome_usuario = ?, nr_rg = ?, nr_cpf = ?, " +
-                        "dt_nascimento = ?, nr_celular = ?, nr_telefone = ?, nr_celular1 = ?, nr_telefone1 = ? " +
-                        "WHERE cd_usuario = ?")) {
+                "UPDATE USUARIO SET email = ?, password = ?, nm_usuario = ?, sobrenome_usuario = ?, " +
+                        "nr_rg = ?, nr_cpf = ?, dt_nascimento = ?, nr_celular = ?, nr_telefone = ?, " +
+                        "nr_celular1 = ?, nr_telefone1 = ? WHERE cd_usuario = ?")) {
 
-            pstmt.setString(1, user.getName());
-            pstmt.setString(2, user.getSurname());
-            pstmt.setString(3, user.getRg());
-            pstmt.setString(4, user.getCpf());
-            pstmt.setDate(5, new java.sql.Date(user.getDateOfBirth().getTime()));
-            pstmt.setString(6, user.getCellPhone());
-            pstmt.setString(7, user.getTelephone());
-            pstmt.setString(8, user.getCellPhone1());
-            pstmt.setString(9, user.getTelephone1());
-            pstmt.setInt(10, user.getCode());
+            pstmt.setString(1, user.getEmail());
+            pstmt.setString(2, user.getPassword());
+            pstmt.setString(3, user.getName());
+            pstmt.setString(4, user.getSurname());
+            pstmt.setString(5, user.getRg());
+            pstmt.setString(6, user.getCpf());
+            pstmt.setDate(7, new java.sql.Date(user.getDateOfBirth().getTime()));
+            pstmt.setString(8, user.getCellPhone());
+            pstmt.setString(9, user.getTelephone());
+            pstmt.setString(10, user.getCellPhone1());
+            pstmt.setString(11, user.getTelephone1());
+            pstmt.setInt(12, user.getCode());
 
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Erro ao atualizar usuário", e);
         }
     }
 
@@ -150,15 +130,61 @@ public class UserDAOImpl implements UserDAO {
     @Override
     public void remove(int code) {
         if (connection == null) {
-            return;
+            throw new IllegalStateException("Conexão é nula");
         }
 
         try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM USUARIO WHERE cd_usuario = ?")) {
             pstmt.setInt(1, code);
-
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Erro ao remover usuário", e);
         }
+    }
+
+    @Override
+    public String login(String email, String password) {
+        if (connection == null) {
+            throw new IllegalStateException("Conexão é nula");
+        }
+
+        try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM USUARIO WHERE email = ? AND password = ?")) {
+            pstmt.setString(1, email);
+            pstmt.setString(2, password);
+
+            try (ResultSet resultSet = pstmt.executeQuery()) {
+                if (resultSet.next()) {
+                    String storedEmail = resultSet.getString("email");
+                    String storedPassword = resultSet.getString("password");
+                    if (storedEmail.equals(email) && storedPassword.equals(password)) {
+                        return "Login bem-sucedido";
+                    } else {
+                        return "Credenciais inválidas";
+                    }
+                } else {
+                    return "Credenciais inválidas";
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Erro durante o login";
+        }
+    }
+
+    private User extractUserFromResultSet(ResultSet resultSet) throws SQLException {
+        User user = new User();
+        user.setCode(resultSet.getInt("cd_usuario"));
+        user.setEmail(resultSet.getString("email"));
+        user.setPassword(resultSet.getString("password"));
+        user.setName(resultSet.getString("nm_usuario"));
+        user.setSurname(resultSet.getString("sobrenome_usuario"));
+        user.setRg(resultSet.getString("nr_rg"));
+        user.setCpf(resultSet.getString("nr_cpf"));
+        user.setDateOfBirth(resultSet.getDate("dt_nascimento"));
+        user.setCellPhone(resultSet.getString("nr_celular"));
+        user.setTelephone(resultSet.getString("nr_telefone"));
+        user.setCellPhone1(resultSet.getString("nr_celular1"));
+        user.setTelephone1(resultSet.getString("nr_telefone1"));
+        return user;
     }
 }

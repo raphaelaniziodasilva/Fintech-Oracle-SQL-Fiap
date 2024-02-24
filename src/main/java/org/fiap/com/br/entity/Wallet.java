@@ -1,6 +1,7 @@
 package org.fiap.com.br.entity;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 public class Wallet implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -9,13 +10,15 @@ public class Wallet implements Serializable {
     private String name;
     private double balance;
     private double expenses;
+    private double economy;
 
-    public Wallet(int code, int userCode, String name, double balance, double expenses) {
+    public Wallet(int code, int userCode, String name, double balance) {
         this.code = code;
         this.userCode = userCode;
         this.name = name;
         this.balance = balance;
-        this.expenses = expenses;
+        this.expenses = 0;
+        this.economy = 0;
     }
 
     public Wallet() {
@@ -61,6 +64,14 @@ public class Wallet implements Serializable {
         this.expenses = expenses;
     }
 
+    public double getEconomy() {
+        return economy;
+    }
+
+    public void setEconomy(double economy) {
+        this.economy = economy;
+    }
+
     @Override
     public String toString() {
         return "Wallet{" +
@@ -69,6 +80,7 @@ public class Wallet implements Serializable {
                 ", name='" + name + '\'' +
                 ", balance=" + balance +
                 ", expenses=" + expenses +
+                ", economy=" + economy +
                 '}';
     }
 }
